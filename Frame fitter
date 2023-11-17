@@ -1,0 +1,39 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class FrameFitter : MonoBehaviour
+{
+    private Transform[] _frames = new Transform[4];
+    [SerializeField] float _frameLenght;
+
+    void Start()
+    {
+        var _childCount = gameObject.transform.childCount;
+        for (int i = 0; i < _childCount; i++)
+        {
+            _frames[i] = gameObject.transform.GetChild(i);
+        }
+
+        FitLeteralFrames(40);
+        FitHigherFrames(40);
+    }
+
+    private void FitLeteralFrames(int _indient)
+    {
+        _frames[0].position = new Vector3(0 + Screen.width / 40, Screen.height / 2, 0);
+        _frames[0].localScale = new Vector3(4, Screen.height - Screen.height / _frameLenght, 1);
+
+        _frames[1].position = new Vector3(Screen.width - Screen.width / _indient, Screen.height / 2, 0);
+        _frames[1].localScale = new Vector3(4, Screen.height - Screen.height / _frameLenght, 1);
+    }
+
+    private void FitHigherFrames(int _indient)
+    {
+        _frames[2].position = new Vector3(Screen.width / 2, Screen.height - Screen.height / _indient, 0);
+        _frames[2].localScale = new Vector3(Screen.width - Screen.width / _frameLenght, 4, 1);
+
+        _frames[3].position = new Vector3(Screen.width / 2, 0 + Screen.height / _indient, 0);
+        _frames[3].localScale = new Vector3(Screen.width - Screen.width / _frameLenght, 4, 1);
+    }
+}
