@@ -1,0 +1,189 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+
+public class AnematronicMovmentAi : MonoBehaviour
+{
+    public int _position { get; private set; } 
+    public int _pastPosition { get; private set; }
+    [SerializeField] private int _damage;
+    [SerializeField] private string _tagName;
+    [SerializeField] private int _stepTime;
+    [SerializeField] private float _attackTimeDivider;
+    [SerializeField] private int _timeToReload;
+    [SerializeField] private int _timeToStartAttack;
+    [SerializeField] private int _prePositionChangeMaxTime;
+    [SerializeField] private int _prePositionChangeMinTime;
+    [SerializeField] private int _animatronicId;
+    [SerializeField] private GameObject _animatronicModel;
+    [SerializeField] private GameObject _positionObjact;
+    [SerializeField] private LiveAndDeadController _liveAndDeadController;
+    [SerializeField] private AnematronicMovmentAi _anotherAnimatronic1;
+    [SerializeField] private AnematronicMovmentAi _anotherAnimatronic2;
+    [SerializeField] private TabletController _tabletController;
+    [SerializeField] private bool _isAtackAvalible = true;
+    [SerializeField] private SoundManager _soundManager;
+    [SerializeField] private Animator _animator;
+    [SerializeField] private int _animationCount;
+    [SerializeField] private AnemotronicsAI _anemotronicsAI;
+    public event UnityAction<int, int, int> PositionChanged;
+
+    void Start()
+    {
+        StartCoroutine(TimeToStartAttack());
+    }
+    private void GetNextPosition()
+    {
+        _pastPosition = _position;
+        GameObject[] _positionsWithTag = GameObject.FindGameObjectsWithTag(_tagName + _position);
+        if (_isAtackAvalible == false)
+        {
+            do
+            {
+               _position = FindPosition();
+            }
+            while (_position == 6 | _position == 7 | _position == 8 | _position == 9);
+        }
+        else if (_anotherAnimatronic1._position == 6 || _anotherAnimatronic1._position == 7 || _anotherAnimatronic2._position == 6 || _anotherAnimatronic2._position == 7)
+        {
+                bool _anotherAnim = false;
+            do
+            {
+                _position = FindPosition();
+                if (_anotherAnimatronic1._position == 8 | _anotherAnimatronic1._position == 9 | _anotherAnimatronic2._position == 8 | _anotherAnimatronic2._position == 9)
+                {
+                    if (_position == 8 | _position == 9)
+                    {
+                        _anotherAnim = true;
+                    }
+                    else
+                    {
+                        _anotherAnim = false;
+                    }
+                }
+            }
+            while (_position == 6 | _position == 7 | _anotherAnim);
+        }
+        else if (_anotherAnimatronic1._position == 8 || _anotherAnimatronic1._position == 9 || _anotherAnimatronic2._position == 8 || _anotherAnimatronic2._position == 9)
+        {
+            bool _anotherAnim = false;
+            do
+            {
+                _position = FindPosition();
+                if (_anotherAnimatronic1._position == 6 | _anotherAnimatronic1._position == 7 | _anotherAnimatronic2._position == 6 | _anotherAnimatronic2._position == 7)
+                {
+                    if (_position == 6 | _position == 7)
+                    {
+                        _anotherAnim = true;
+                    }
+                    else
+                    {
+                        _anotherAnim = false;
+                    }
+                }
+            }
+            while (_position == 8 | _position == 9 | _anotherAnim);
+        }
+        else
+        {
+            _position = FindPosition();
+        }
+        GameObject _objactPrePosition = _positionObjact.transform.Find("Positions").gameObject;
+        List<Transform> _positionsForTeleport = new();
+        foreach (Transform positions in _objactPrePosition.transform)
+        {
+            _positionsForTeleport.Add(positions);
+        }
+        GameObject _positionForTeleport = _positionsForTeleport[Random.Range(0, _positionsForTeleport.Count)].gameObject;
+        _animatronicModel.transform.position = _positionForTeleport.transform.position;
+        _animatronicModel.transform.rotation = _positionForTeleport.transform.rotation;
+        if (_pastPosition == _tabletController._numberOfUsebleCamera || _position == _tabletController._numberOfUsebleCamera)
+        {
+            _tabletController.CameraInterference(_tabletController._numberOfUsebleCamera); 
+        }
+
+        if (_position == 6 || _position == 8)
+        {
+            _isAtackAvalible = false;
+            StartCoroutine(AttackRealod());
+        }
+        PositionChanged?.Invoke(_position, _damage, _animatronicId);
+
+        if (_positionsForTeleport.Count > 1 && _position != 8 && _position != 6)
+        {
+            if (Random.Range(0, 4) == 3)
+            {
+                StartCoroutine(PrePositionChangeTime(Random.Range(_prePositionChangeMinTime, _prePositionChangeMaxTime)));
+            }
+        }
+
+        int FindPosition()
+        {
+            GameObject _cildrenOfPositionObjact = _positionsWithTag[Random.Range(0, _positionsWithTag.Length)];
+            _positionObjact = _cildrenOfPositionObjact.GetComponentInParent<Transform>().parent.parent.gameObject;
+            var pos = int.Parse(_positionObjact.name);
+            return pos;
+        }
+    }
+
+    private void PrePositionChange()
+    {
+        GameObject _objactPrePosition = _positionObjact.transform.Find("Positions").gameObject;
+        List<Transform> _positionsForTeleport = new();
+        foreach (Transform positions in _objactPrePosition.transform)
+        {
+            _positionsForTeleport.Add(positions);
+        }
+        
+        GameObject _positionForTeleport = _positionsForTeleport[Random.Range(0, _positionsForTeleport.Count)].gameObject;
+        _animatronicModel.transform.position = _positionForTeleport.transform.position;
+        
+    }
+
+    public void Stop()
+    {
+        _position = 0;
+        GetNextPosition();
+        _stepTime = 1000;
+        _damage = 0;
+    }
+    IEnumerator AttackRealod()
+    {
+        yield return new WaitForSeconds(_timeToReload);
+        _isAtackAvalible = true;
+    }
+    IEnumerator TimeToStartAttack()
+    {
+        yield return new WaitForSeconds(_timeToStartAttack - _anemotronicsAI._nightIndex * 3);
+        StartCoroutine(StepTime());
+        _soundManager.PlayAmbientRandom();
+        yield return new WaitForSeconds(_stepTime - _anemotronicsAI._nightIndex);
+    }
+
+    IEnumerator StepTime()
+    {
+        while(true)
+        {
+            if (_position == 6 | _position == 8)
+            {
+                _animator.SetInteger("pos", Random.Range(1, _animationCount + 1));
+                yield return new WaitForSeconds(_stepTime / _attackTimeDivider);
+                _animator.SetTrigger("default");
+                GetNextPosition();
+            }
+            else
+                _animator.SetInteger("pos", Random.Range(1, _animationCount + 1));
+            yield return new WaitForSeconds(_stepTime - _anemotronicsAI._nightIndex);
+            _animator.SetTrigger("default");
+            GetNextPosition();
+        }
+    }
+
+    IEnumerator PrePositionChangeTime(int _waitTime)
+    {
+            yield return new WaitForSeconds(_waitTime);
+            PrePositionChange();
+    }
+
+}
